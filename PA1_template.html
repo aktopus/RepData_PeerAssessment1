@@ -246,7 +246,6 @@ base
 <p>Having already taken care of removing the missing values above, we move on to creating a histogram of total number of steps per day. Using this as a chance to practice using ggplot2.</p>
 
 <pre><code class="r">require(ggplot2)
-#p&lt;-qplot(base$steps,binwidth=2) + coord_cartesian(ylim = c(0, 150)) + geom_hline(aes(yintercept=mean(base$steps),color=&quot;orange&quot;))+annotate(&quot;text&quot;, x=700, y=mean(base$steps)+5, label=&quot;Avg Steps Per Day&quot;)
 
 #Make a histogram of the total number of steps taken each day
 #basically following the instructions best I can, throwing up a histogram, but split into separate plots by day. Clearly doesn&#39;t work out so well. Would love to see how other people tackled this.
@@ -259,10 +258,10 @@ ggplot(base, aes(steps, ..density..)) + geom_histogram(binwidth = 2) + facet_wra
 
 av&lt;-base %&gt;% group_by(date) %&gt;% summarize(mean(steps))
 names(av)[2]&lt;-&quot;mean_steps&quot;
-print(&quot;The mean steps by day is below:&quot;)
+print(&quot;The mean steps taken by day is below:&quot;)
 </code></pre>
 
-<pre><code>## [1] &quot;The mean steps by day is below:&quot;
+<pre><code>## [1] &quot;The mean steps taken by day is below:&quot;
 </code></pre>
 
 <pre><code class="r">av
@@ -328,10 +327,10 @@ print(&quot;The mean steps by day is below:&quot;)
 
 <pre><code class="r">md&lt;-base %&gt;% group_by(date) %&gt;% summarize(median(steps))
 names(md)[2]&lt;-&quot;median_steps&quot;
-print(&quot;The median steps by day is below:&quot;)
+print(&quot;The median steps taken by day is below:&quot;)
 </code></pre>
 
-<pre><code>## [1] &quot;The median steps by day is below:&quot;
+<pre><code>## [1] &quot;The median steps taken by day is below:&quot;
 </code></pre>
 
 <pre><code class="r">md
@@ -404,7 +403,7 @@ These steps entail plotting mean steps vs. the interval, and finding the maximum
 mds&lt;-base %&gt;% group_by(interval) %&gt;% summarize(mean(steps))
 names(mds)[2]&lt;-&quot;mean_steps&quot;
 
-#plot mean steps vs interval
+#timeseries plot of mean steps vs interval
 plot(mds$interval,mds$mean_steps,type=&quot;l&quot;,xlab=&quot;Interval&quot;,ylab=&quot;Mean Steps&quot;)
 </code></pre>
 
@@ -412,17 +411,18 @@ plot(mds$interval,mds$mean_steps,type=&quot;l&quot;,xlab=&quot;Interval&quot;,yl
 
 <pre><code class="r">#get the max value for mean steps
 maxsteps&lt;-max(mds$mean_steps)
-print(paste(&quot;The maximum steps for an interval is at&quot;,maxsteps))
+maxint&lt;-which.max(mds$mean_steps)
+print(paste(&quot;The maximum average number of steps is&quot;,maxsteps,&quot;at the 5-minute interval&quot;,maxint))
 </code></pre>
 
-<pre><code>## [1] &quot;The maximum steps for an interval is at 206.169811320755&quot;
+<pre><code>## [1] &quot;The maximum average number of steps is 206.169811320755 at the 5-minute interval 104&quot;
 </code></pre>
 
 <p>##Imputing missing values</p>
 
 <p>The values do indeed differ once we&#39;ve filled in the NA values. For one, we have mean steps for days for which we didn&#39;t have values (since I filled in based on interval and not date). This amounts to a total of 7 days for which there were not previously values. The means become higher, as the low modal value of zero brings down the average, and the medians remain the same, because zero is so common.</p>
 
-<p>This was all accomplished by saving a data frame of the incomplete case indeces, as well as the intervals they corresponded to, and then creating a for loop that went to each complete case, and replaced it with the average for the corresponding interval.</p>
+<p>This was all accomplished by saving a data frame containing the rows of the incomplete cases, as well as the 5-minute intervals they corresponded to, and then creating a For Loop that went to each complete case, and replaced it with the average for the corresponding interval.</p>
 
 <pre><code class="r">#Refer back to variable raw, which has all measurements, and subtracting its value from base measurements to get the number of missing values
 nmv&lt;-nrow(raw)-nrow(base)
