@@ -1,25 +1,141 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Analysis of Activity Monitoring Data"
+author: "Aktopus"
+date: "October 19, 2014"
+output: html_document
 ---
 
+This is an R Markdown document that satisfies the requirements of the first Peer Assessment for Coursera's "Reproducible Research" class within the Data Science Specialization. The purpose is to deomonstrate facility with R markdown through the detailed documentation of the steps in a selected series of data analysis.
 
-## Loading and preprocessing the data
+##Loading and preprocessing the data
+
+The first thing we'd like to do is download, unzip, and read the data into memory.
+
+```{r}
+#loading dplyr, which is far superior for editing data than the base subsetting options. 
+#would definitely suggest taking the Swirl class on this (which I happened to learn expanded to include dplyr after I took R Programming)
+require(dplyr)
+require(lubridate)
+
+#download the file
+dataUrl<-"https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+download.file(url=dataUrl,"Activity_Monitoring_Data.zip",method="curl")
+
+#unzip the file
+unzip("Activity_Monitoring_Data.zip")
+
+#load the csv
+raw<-read.csv("activity.csv")
+
+#Convert to "table frame." This is available in dplyr and lets you perform dplyr functions.
+#printing a data frame also will provide a super convenient summary instead of displaying everything.
+raw<-tbl_df(raw)
+
+#Convert date into date format from factor. Using Lubridate's simple function
+raw[,2]<-ymd(raw[,2])
+
+#Eliminate any NA values
+base<-raw[complete.cases(raw),]
+
+#Print the summary of the result.
+base
+```
+
+##What is mean total number of steps taken per day?
+
+Having already taken care of removing the missing values above, we move on to creating a histogram of total number of steps per day. Using this as a chance to practice using ggplot2.
+
+```{r}
+require(ggplot2)
+#p<-qplot(base$steps,binwidth=2) + coord_cartesian(ylim = c(0, 150)) + geom_hline(aes(yintercept=mean(base$steps),color="orange"))+annotate("text", x=700, y=mean(base$steps)+5, label="Avg Steps Per Day")
+
+#Make a histogram of the total number of steps taken each day
+#basically following the instructions best I can, throwing up a histogram, but split into separate plots by day. Clearly doesn't work out so well. Would love to see how other people tackled this.
+ggplot(base, aes(steps, ..density..)) + geom_histogram(binwidth = 2) + facet_wrap(~ date)
+
+#By necessity, I am limiting the range for the y values, as 0 steps amounts to 11,014 measurements, thus taking up a huge portion of the chart.
+
+av<-base %>% group_by(date) %>% summarize(mean(steps))
+names(av)[2]<-"mean_steps"
+print("The mean steps by day is below:")
+av
+      
+md<-base %>% group_by(date) %>% summarize(median(steps))
+names(md)[2]<-"median_steps"
+print("The median steps by day is below:")
+md
+```
+##What is the average daily activity pattern?
+
+I'll again rely on using the dplyr package to subset this data further. But for real. Get dplyr if you've not already. Hadley Wickman made it, yo.
+These steps entail plotting mean steps vs. the interval, and finding the maximum number of steps.
+
+```{r}
+#set new variable equal to the mean of steps grouped by date mds for "mean date step"
+mds<-base %>% group_by(interval) %>% summarize(mean(steps))
+names(mds)[2]<-"mean_steps"
+
+#plot mean steps vs interval
+plot(mds$interval,mds$mean_steps,type="l",xlab="Interval",ylab="Mean Steps")
+
+#get the max value for mean steps
+maxsteps<-max(mds$mean_steps)
+print(paste("The maximum steps for an interval is at",maxsteps))
+
+```
+##Imputing missing values
+
+The values do indeed differ once we've filled in the NA values. For one, we have mean steps for days for which we didn't have values (since I filled in based on interval and not date). This amounts to a total of 7 days for which there were not previously values. The means become higher, as the low modal value of zero brings down the average, and the medians remain the same, because zero is so common.
+
+This was all accomplished by saving a data frame of the incomplete case indeces, as well as the intervals they corresponded to, and then creating a for loop that went to each complete case, and replaced it with the average for the corresponding interval.
 
 
+```{r}
+#Refer back to variable raw, which has all measurements, and subtracting its value from base measurements to get the number of missing values
+nmv<-nrow(raw)-nrow(base)
+print(paste("There are",nmv,"missing values"))
 
-## What is mean total number of steps taken per day?
+incomplete<-which(!complete.cases(raw))
+intv<-raw[incomplete,3]
 
+rawold<-raw #was part of my process. just in case I needed to re-create the initial raw data frame.
 
+#for loop goes through all incomplete cases, and turns NA values into the average for the interval in question
+for(i in 1:length(incomplete))
+{
+        replacement<-raw %>% filter(interval==intv[i]) %>% summarize(mean(steps,na.rm=TRUE))
+        
+        raw[incomplete[i],1]<-replacement
+}
 
-## What is the average daily activity pattern?
+ggplot(base, aes(steps, ..density..)) + geom_histogram(binwidth = 2) + facet_wrap(~ date)#same issues with plotting as before
 
+av2<-raw %>% group_by(date) %>% summarize(mean(steps))
+names(av2)[2]<-"mean_steps"
+print(paste("The mean steps by day is below:"))
+av2
+      
+md2<-raw %>% group_by(date) %>% summarize(median(steps))
+names(md2)[2]<-"median_steps"
+print("The median steps by day is below:")
+md2
 
+```
+##Are there differences in activity patterns between weekdays and weekends?
 
-## Imputing missing values
+Here, turned day into day of the week, into a factor variable of two levels, weekday and weekend. Then, this was used to create a plot of steps/interval, split by weekday and weekend. Activity tends to be higher at the beginning of the day for the weekdays, and more skewed toward the end of the day on weekends.
 
+```{r}
 
+#give values for weekday and weekend
+day_of_week<-weekdays(raw$date)
+day_type<-day_of_week %in% c("Saturday","Sunday")
+day_type[day_type==TRUE]<-"Weekend"
+day_type[day_type==FALSE]<-"Weekday"
+day_type<-as.factor(day_type)
+raw<-cbind(raw,day_type)
+raw<-tbl_df(raw) #making this a table frame again (not necessary at this point)
 
-## Are there differences in activity patterns between weekdays and weekends?
+#plot weekday and weekend values for interval vs. steps
+ggplot(raw,aes(x=interval,y=steps,color=day_type))+geom_line()+ facet_wrap(~ day_type)
+```
